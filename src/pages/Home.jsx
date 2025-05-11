@@ -1,24 +1,93 @@
-// src/pages/Home.jsx
-import React, { useEffect, useState } from "react";
-import { collection, getDocs, orderBy, query } from "firebase/firestore";
-import { db } from "../firebase";
+import React, { useEffect, useState, useRef, useCallback } from "react";
+import {
+  collection,
+  getDocs,
+  orderBy,
+  query,
+  startAfter,
+  limit,
+} from "firebase/firestore";
+import { db, auth } from "../firebase";
 import PostCard from "../components/PostCard";
 import UploadForm from "../components/UploadForm";
 import { FiHome, FiPlusCircle, FiUser, FiHeart } from "react-icons/fi";
 
 export default function Home() {
   const [posts, setPosts] = useState([]);
+  const [lastVisible, setLastVisible] = useState(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const observerRef = useRef();
+
+  const userPhoto = auth.currentUser?.photoURL;
+
+  // İlk 4 postu çek
+  const fetchInitialPosts = async () => {
+    const q = query(
+      collection(db, "posts"),
+      orderBy("createdAt", "desc"),
+      limit(4)
+    );
+    const snapshot = await getDocs(q);
+    const data = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+
+    setPosts(data);
+    setLastVisible(snapshot.docs[snapshot.docs.length - 1]);
+    setHasMore(snapshot.docs.length === 4);
+  };
+
+  // Daha fazla postu çek
+  const fetchMorePosts = useCallback(async () => {
+    if (!lastVisible || loadingMore || !hasMore) return;
+
+    setLoadingMore(true);
+    const q = query(
+      collection(db, "posts"),
+      orderBy("createdAt", "desc"),
+      startAfter(lastVisible),
+      limit(4)
+    );
+    const snapshot = await getDocs(q);
+
+    if (!snapshot.empty) {
+      const newPosts = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      setPosts((prev) => [...prev, ...newPosts]);
+      setLastVisible(snapshot.docs[snapshot.docs.length - 1]);
+      if (snapshot.docs.length < 4) setHasMore(false);
+    } else {
+      setHasMore(false);
+    }
+    setLoadingMore(false);
+  }, [lastVisible, loadingMore, hasMore]);
 
   useEffect(() => {
-    const fetchPosts = async () => {
-      const q = query(collection(db, "posts"), orderBy("createdAt", "desc"));
-      const querySnapshot = await getDocs(q);
-      const data = querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-      setPosts(data);
-    };
-    fetchPosts();
+    fetchInitialPosts();
   }, []);
+
+  // Sonsuz scroll için gözlemci
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore) {
+          fetchMorePosts();
+        }
+      },
+      { threshold: 1 }
+    );
+
+    if (observerRef.current) observer.observe(observerRef.current);
+
+    return () => {
+      if (observerRef.current) observer.unobserve(observerRef.current);
+    };
+  }, [fetchMorePosts, hasMore]);
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -28,13 +97,12 @@ export default function Home() {
         <FiHeart size={24} />
       </header>
 
-      {/* İçerik + Sidebar */}
       <div className="flex flex-1 bg-gray-50">
-        {/* Soldaki sidebar (md ve üzeri) */}
+        {/* Sidebar */}
         <aside className="hidden md:block w-64 bg-white border-r p-4">
           <div className="flex flex-col items-center mb-6">
             <img
-              src="https://i.pravatar.cc/100"
+              src={userPhoto || "/default-avatar.jpg"}
               alt="Profil"
               className="w-24 h-24 rounded-full mb-2"
             />
@@ -65,10 +133,12 @@ export default function Home() {
           {posts.map((post) => (
             <PostCard key={post.id} post={post} />
           ))}
+          {loadingMore && <p className="text-center mt-4">Yükleniyor...</p>}
+          <div ref={observerRef} className="h-10" />
         </main>
       </div>
 
-      {/* Bottom Navigation (mobilde) */}
+      {/* Mobil alt navbar */}
       <nav className="fixed bottom-0 left-0 right-0 bg-white border-t flex justify-around items-center py-2 md:hidden">
         <button className="flex flex-col items-center text-sm">
           <FiHome size={24} />
@@ -99,7 +169,15 @@ export default function Home() {
                 ✕
               </button>
             </div>
-            <UploadForm onUploadSuccess={() => setShowModal(false)} />
+            <UploadForm
+              onUploadSuccess={() => {
+                setPosts([]);
+                setLastVisible(null);
+                setHasMore(true);
+                fetchInitialPosts(); // baştan yükle
+                setShowModal(false);
+              }}
+            />
           </div>
         </div>
       )}

@@ -3,38 +3,38 @@ import { storage, db, auth } from "../firebase";
 import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 
-export default function UploadForm() {
+export default function UploadForm({ onUploadSuccess }) {
   const [file, setFile] = useState(null);
   const [title, setTitle] = useState("");
+  const [isUploading, setIsUploading] = useState(false);
+  const [progress, setProgress] = useState(0); // 👈 progress state
 
   const handleUpload = () => {
     if (!file || !auth.currentUser) return;
 
-    // 1. Storage ref oluştur
+    setIsUploading(true);
+    setProgress(0);
+
     const storageRef = ref(
       storage,
       `posts/${auth.currentUser.uid}/${Date.now()}_${file.name}`
     );
 
-    // 2. Resumable upload başlat
     const uploadTask = uploadBytesResumable(storageRef, file);
 
     uploadTask.on(
       "state_changed",
       (snapshot) => {
-        // opsiyonel: progress takibi
-        const progress =
-          (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-        console.log("Upload is " + progress + "% done");
+        const prog = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+        setProgress(prog); // 👈 progress güncelle
       },
       (error) => {
         console.error("Upload error:", error);
+        setIsUploading(false);
       },
       async () => {
-        // 3. Upload tamamlandığında indirme URL’si al
         const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
 
-        // 4. Firestore’a kayıt et
         await addDoc(collection(db, "posts"), {
           uid: auth.currentUser.uid,
           username: auth.currentUser.displayName || auth.currentUser.email,
@@ -44,9 +44,12 @@ export default function UploadForm() {
           createdAt: serverTimestamp(),
         });
 
-        // temizle
         setFile(null);
         setTitle("");
+        setIsUploading(false);
+        setProgress(0); // reset progress
+
+        if (onUploadSuccess) onUploadSuccess();
       }
     );
   };
@@ -65,13 +68,29 @@ export default function UploadForm() {
         onChange={(e) => setTitle(e.target.value)}
         className="p-2 border rounded"
       />
+
       <button
         onClick={handleUpload}
         className="bg-blue-500 text-white px-4 py-2 rounded disabled:opacity-50"
-        disabled={!file}
+        disabled={!file || isUploading || !title}
       >
-        Yükle
+        {isUploading ? "Yükleniyor..." : "Yükle"}
       </button>
+
+      {/* 👇 Progress Bar */}
+      {isUploading && (
+        <div className="flex flex-col gap-1">
+          <div className="w-full bg-gray-300 rounded h-3 overflow-hidden">
+            <div
+              className="bg-blue-500 h-3 transition-all duration-200"
+              style={{ width: `${progress}%` }}
+            ></div>
+          </div>
+          <span className="text-sm text-gray-700 text-center">
+            %{Math.round(progress)} yüklendi
+          </span>
+        </div>
+      )}
     </div>
   );
 }

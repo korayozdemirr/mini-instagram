@@ -79,7 +79,9 @@ export default function PostCard({ post }) {
     await addDoc(commentRef, {
       text: newComment.trim(),
       userId,
-      username: auth.currentUser.displayName || 'Anonim',
+      username: auth.currentUser.displayName ||
+      auth.currentUser.email?.split('@')[0] ||
+      'Anonim',
       userPhoto: auth.currentUser.photoURL || '',
       createdAt: serverTimestamp(),
     });
@@ -92,7 +94,7 @@ export default function PostCard({ post }) {
       {/* Kullanıcı bilgisi */}
       <div className="flex items-center mb-2">
         <img
-          src={post.userPhoto || 'https://via.placeholder.com/32'}
+          src={post.userPhoto || '/default-avatar.jpg'}
           alt={post.username}
           className="w-8 h-8 rounded-full mr-2"
         />
@@ -138,7 +140,7 @@ export default function PostCard({ post }) {
         {comments.map((c) => (
           <div key={c.id} className="flex items-start gap-2 text-sm">
             <img
-              src={c.userPhoto || 'https://via.placeholder.com/24'}
+              src={c.userPhoto || 'default-avatar.jpg'}
               alt={c.username}
               className="w-6 h-6 rounded-full"
             />
