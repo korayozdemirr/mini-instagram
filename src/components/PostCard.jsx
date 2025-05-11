@@ -1,7 +1,7 @@
 // src/components/PostCard.jsx
-import React, { useState, useEffect } from 'react';
-import { FiHeart, FiMessageCircle } from 'react-icons/fi';
-import { db, auth } from '../firebase';
+import React, { useState, useEffect } from "react";
+import { FiHeart, FiMessageCircle } from "react-icons/fi";
+import { db, auth } from "../firebase";
 import {
   doc,
   updateDoc,
@@ -13,12 +13,12 @@ import {
   serverTimestamp,
   query,
   orderBy,
-} from 'firebase/firestore';
+} from "firebase/firestore";
 
 export default function PostCard({ post }) {
   const [likes, setLikes] = useState(post.likes || []);
   const [comments, setComments] = useState([]);
-  const [newComment, setNewComment] = useState('');
+  const [newComment, setNewComment] = useState("");
   const userId = auth.currentUser?.uid;
   const hasLiked = likes.includes(userId);
   const [imgLoaded, setImgLoaded] = useState(false);
@@ -33,21 +33,21 @@ export default function PostCard({ post }) {
     dateObj = new Date();
   }
   const formattedDate = dateObj.toLocaleString(undefined, {
-    dateStyle: 'medium',
-    timeStyle: 'short',
+    dateStyle: "medium",
+    timeStyle: "short",
   });
 
   // Gerçek zamanlı veriler
   useEffect(() => {
-    const unsubPost = onSnapshot(doc(db, 'posts', post.id), (docSnap) => {
+    const unsubPost = onSnapshot(doc(db, "posts", post.id), (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data();
         setLikes(data.likes || []);
       }
     });
 
-    const commentsRef = collection(db, 'posts', post.id, 'comments');
-    const q = query(commentsRef, orderBy('createdAt', 'asc'));
+    const commentsRef = collection(db, "posts", post.id, "comments");
+    const q = query(commentsRef, orderBy("createdAt", "asc"));
     const unsubComments = onSnapshot(q, (snapshot) => {
       const commentList = snapshot.docs.map((doc) => ({
         id: doc.id,
@@ -63,7 +63,7 @@ export default function PostCard({ post }) {
   }, [post.id]);
 
   const toggleLike = async () => {
-    const postRef = doc(db, 'posts', post.id);
+    const postRef = doc(db, "posts", post.id);
     if (hasLiked) {
       await updateDoc(postRef, { likes: arrayRemove(userId) });
     } else {
@@ -75,18 +75,19 @@ export default function PostCard({ post }) {
     e.preventDefault();
     if (!newComment.trim()) return;
 
-    const commentRef = collection(db, 'posts', post.id, 'comments');
+    const commentRef = collection(db, "posts", post.id, "comments");
     await addDoc(commentRef, {
       text: newComment.trim(),
       userId,
-      username: auth.currentUser.displayName ||
-      auth.currentUser.email?.split('@')[0] ||
-      'Anonim',
-      userPhoto: auth.currentUser.photoURL || '',
+      username:
+        auth.currentUser.displayName ||
+        auth.currentUser.email?.split("@")[0] ||
+        "Anonim",
+      userPhoto: auth.currentUser.photoURL || "",
       createdAt: serverTimestamp(),
     });
 
-    setNewComment('');
+    setNewComment("");
   };
 
   return (
@@ -94,7 +95,7 @@ export default function PostCard({ post }) {
       {/* Kullanıcı bilgisi */}
       <div className="flex items-center mb-2">
         <img
-          src={post.userPhoto || '/default-avatar.jpg'}
+          src={post.userPhoto || "/default-avatar.jpg"}
           alt={post.username}
           className="w-8 h-8 rounded-full mr-2"
         />
@@ -112,7 +113,9 @@ export default function PostCard({ post }) {
         <img
           src={post.imageUrl}
           alt={post.caption}
-          className={`w-full max-h-[calc(100vh-150px)] rounded-md object-contain transition-opacity duration-300 ${imgLoaded ? 'opacity-100' : 'opacity-0'}`}
+          className={`w-full max-h-[calc(100vh-150px)] rounded-md object-contain transition-opacity duration-300 ${
+            imgLoaded ? "opacity-100" : "opacity-0"
+          }`}
           loading="lazy"
           onLoad={() => setImgLoaded(true)}
         />
@@ -126,7 +129,10 @@ export default function PostCard({ post }) {
       {/* Like & Comment Butonları */}
       <div className="flex items-center gap-4 mb-2">
         <button onClick={toggleLike} className="flex items-center">
-          <FiHeart size={20} className={hasLiked ? 'text-red-500' : 'text-gray-600'} />
+          <FiHeart
+            size={20}
+            className={hasLiked ? "text-red-500" : "text-gray-600"}
+          />
           <span className="ml-1 text-sm">{likes.length}</span>
         </button>
         <div className="flex items-center">
@@ -140,7 +146,7 @@ export default function PostCard({ post }) {
         {comments.map((c) => (
           <div key={c.id} className="flex items-start gap-2 text-sm">
             <img
-              src={c.userPhoto || 'default-avatar.jpg'}
+              src={c.userPhoto || "default-avatar.jpg"}
               alt={c.username}
               className="w-6 h-6 rounded-full"
             />
@@ -153,20 +159,24 @@ export default function PostCard({ post }) {
       </div>
 
       {/* Yorum Ekleme Alanı */}
-      <form onSubmit={handleCommentSubmit} className="mt-3 flex gap-2 items-start">
+      <form
+        onSubmit={handleCommentSubmit}
+        className="relative mt-3 flex gap-2 items-start"
+      >
         <textarea
           value={newComment}
           onChange={(e) => setNewComment(e.target.value)}
           placeholder="Yorum yaz..."
-          className="flex-1 border text-lg border-gray-300 rounded px-3 py-1 resize-none"
+          className="flex-1 border text-lg border-gray-300 rounded-lg pl-3 py-1 resize-none pr-16"
           rows={1}
         />
-        <button
-          type="submit"
-          className="bg-blue-500 text-white text-sm px-3 py-1 rounded hover:bg-blue-600"
+        <a
+          href="#"
+          onClick={handleCommentSubmit}
+          className="absolute right-0 top-0 bottom-0 text-blue-500 text-sm px-3 py-1 flex items-center justify-center"
         >
           Gönder
-        </button>
+        </a>
       </form>
     </div>
   );
