@@ -4,7 +4,7 @@ import { auth, db } from "../firebase";
 import { FiLogOut, FiEdit2 } from "react-icons/fi";
 import { signOut } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
-import PostCard from "../components/PostCard"; // veya grid post bileşeni
+import Layout from "../components/Layout";
 
 export default function Profile() {
   const [posts, setPosts] = useState([]);
@@ -32,43 +32,10 @@ export default function Profile() {
   };
 
   return (
-    <div className="flex min-h-screen">
-      {/* Sidebar - Masaüstü */}
-      <aside className="hidden md:flex flex-col justify-between w-64 bg-white border-r p-4">
-        <div>
-          <div className="flex flex-col items-center mb-6">
-            <img
-              src={user?.photoURL || "/default-avatar.jpg"}
-              alt="Avatar"
-              className="w-24 h-24 rounded-full mb-2"
-            />
-            <h2 className="font-semibold">{user?.displayName || "Kullanıcı"}</h2>
-            <p className="text-sm text-gray-500">{user?.email}</p>
-            <button
-              onClick={() => alert("Düzenle formu aç")}
-              className="mt-2 px-4 py-1 border rounded text-sm flex items-center gap-1"
-            >
-              <FiEdit2 /> Profili Düzenle
-            </button>
-          </div>
-        </div>
-
-        {/* Çıkış - sadece masaüstü */}
-        <button
-          onClick={handleLogout}
-          className="flex items-center gap-2 text-red-500 hover:text-red-700"
-        >
-          <FiLogOut />
-          Çıkış Yap
-        </button>
-      </aside>
-
-      {/* Ana içerik */}
+    <Layout>
       <main className="flex-1 p-4 max-w-3xl mx-auto w-full">
-        {/* Üst Kısım */}
-        <div className="flex items-center justify-between mb-4 md:hidden">
-          <h1 className="text-xl font-bold">Profil</h1>
-          {/* Mobil çıkış butonu */}
+        {/* Mobil üst kısım */}
+        <div className="flex items-center justify-end mb-4 md:hidden">
           <button
             onClick={handleLogout}
             className="text-red-500 hover:text-red-700 flex items-center gap-1"
@@ -78,7 +45,7 @@ export default function Profile() {
           </button>
         </div>
 
-        {/* Kullanıcı Bilgisi */}
+        {/* Kullanıcı Bilgisi - Mobil */}
         <div className="flex items-center gap-4 mb-6 md:hidden">
           <img
             src={user?.photoURL || "/default-avatar.jpg"}
@@ -86,7 +53,9 @@ export default function Profile() {
             className="w-16 h-16 rounded-full"
           />
           <div>
-            <h2 className="font-semibold text-lg">{user?.displayName || "Kullanıcı"}</h2>
+            <h2 className="font-semibold text-lg">
+              {user?.displayName || user?.email.split('@')[0]}
+            </h2>
             <p className="text-sm text-gray-500">{user?.email}</p>
             <button
               onClick={() => alert("Düzenle formu aç")}
@@ -95,6 +64,30 @@ export default function Profile() {
               <FiEdit2 /> Profili Düzenle
             </button>
           </div>
+        </div>
+
+        {/* Kullanıcı Bilgisi - Masaüstü */}
+        <div className="hidden md:flex flex-col items-center mb-6">
+          <img
+            src={user?.photoURL || "/default-avatar.jpg"}
+            alt="Avatar"
+            className="w-24 h-24 rounded-full mb-2"
+          />
+          <h2 className="font-semibold">{user?.displayName || auth.currentUser.email?.split('@')[0]}</h2>
+          <p className="text-sm text-gray-500">{user?.email}</p>
+          <button
+            onClick={() => alert("Düzenle formu aç")}
+            className="mt-2 px-4 py-1 border rounded text-sm flex items-center gap-1"
+          >
+            <FiEdit2 /> Profili Düzenle
+          </button>
+          <button
+            onClick={handleLogout}
+            className="mt-4 flex items-center gap-2 text-red-500 hover:text-red-700"
+          >
+            <FiLogOut />
+            Çıkış Yap
+          </button>
         </div>
 
         {/* Post Sayısı */}
@@ -113,6 +106,6 @@ export default function Profile() {
           ))}
         </div>
       </main>
-    </div>
+    </Layout>
   );
 }

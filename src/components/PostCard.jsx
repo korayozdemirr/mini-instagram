@@ -158,7 +158,7 @@ export default function PostCard({ post }) {
           value={newComment}
           onChange={(e) => setNewComment(e.target.value)}
           placeholder="Yorum yaz..."
-          className="flex-1 border border-gray-300 rounded px-3 py-1 text-sm resize-none"
+          className="flex-1 border text-lg border-gray-300 rounded px-3 py-1 resize-none"
           rows={1}
         />
         <button
