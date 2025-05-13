@@ -6,6 +6,7 @@ import {
   query,
   startAfter,
   limit,
+  onSnapshot,
 } from "firebase/firestore";
 import { db } from "../firebase";
 import PostCard from "../components/PostCard";
@@ -20,25 +21,29 @@ export default function Home() {
   const [showModal, setShowModal] = useState(false);
   const observerRef = useRef();
 
-  // İlk 4 postu çek
-  const fetchInitialPosts = async () => {
+  // ✅ İlk 4 postu onSnapshot ile anlık dinle
+  useEffect(() => {
     const q = query(
       collection(db, "posts"),
       orderBy("createdAt", "desc"),
       limit(4)
     );
-    const snapshot = await getDocs(q);
-    const data = snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
 
-    setPosts(data);
-    setLastVisible(snapshot.docs[snapshot.docs.length - 1]);
-    setHasMore(snapshot.docs.length === 4);
-  };
+    const unsub = onSnapshot(q, (snapshot) => {
+      const data = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
 
-  // Daha fazla postu çek
+      setPosts(data);
+      setLastVisible(snapshot.docs[snapshot.docs.length - 1]);
+      setHasMore(snapshot.docs.length === 4);
+    });
+
+    return () => unsub();
+  }, []);
+
+  // ✅ Sonsuz scroll için devam edenleri getDocs ile çek
   const fetchMorePosts = useCallback(async () => {
     if (!lastVisible || loadingMore || !hasMore) return;
 
@@ -65,11 +70,7 @@ export default function Home() {
     setLoadingMore(false);
   }, [lastVisible, loadingMore, hasMore]);
 
-  useEffect(() => {
-    fetchInitialPosts();
-  }, []);
-
-  // Sonsuz scroll için gözlemci
+  // ✅ Sonsuz scroll gözlemcisi
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
@@ -111,10 +112,7 @@ export default function Home() {
             </div>
             <UploadForm
               onUploadSuccess={() => {
-                setPosts([]);
-                setLastVisible(null);
-                setHasMore(true);
-                fetchInitialPosts();
+                // ✅ Modal kapanınca özel işlem yapmana gerek yok çünkü onSnapshot aktif zaten
                 setShowModal(false);
               }}
             />
