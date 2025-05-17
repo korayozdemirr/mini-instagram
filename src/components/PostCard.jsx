@@ -1,6 +1,6 @@
 // src/components/PostCard.jsx
 import React, { useState, useEffect } from "react";
-import { FiHeart, FiMessageCircle } from "react-icons/fi";
+import { FiHeart, FiMessageCircle, FiTrash2 } from "react-icons/fi";
 import { db, auth } from "../firebase";
 import {
   doc,
@@ -12,6 +12,7 @@ import {
   serverTimestamp,
   query,
   orderBy,
+  deleteDoc
 } from "firebase/firestore";
 
 export default function PostCard({ post }) {
@@ -90,7 +91,10 @@ export default function PostCard({ post }) {
 
     setNewComment("");
   };
-
+  const handleDeleteComment = async (commentId) => {
+    const commentDoc = doc(db, 'posts', post.id, 'comments', commentId);
+    await deleteDoc(commentDoc);
+  };
   return (
     <div className="bg-white rounded-xl shadow mb-4 p-4">
       {/* Kullanıcı bilgisi */}
@@ -141,6 +145,7 @@ export default function PostCard({ post }) {
 
       {/* Yorumlar */}
       <div className="space-y-2">
+<<<<<<< HEAD
         {comments.map((c) => (
           <div key={c.id} className="flex items-start gap-2 text-sm">
             <img
@@ -154,6 +159,31 @@ export default function PostCard({ post }) {
             </div>
           </div>
         ))}
+=======
+      {comments.map((c) => (
+  <div key={c.id} className="flex items-start gap-2 text-sm">
+    <img
+      src={c.userPhoto || 'default-avatar.jpg'}
+      alt={c.username}
+      className="w-6 h-6 rounded-full"
+    />
+    <div className="bg-gray-100 px-3 py-1 rounded-lg flex-1 flex justify-between items-center">
+      <div>
+        <span className="font-semibold mr-1">{c.username}</span>
+        {c.text}
+      </div>
+      {c.userId === userId && (
+        <button
+          onClick={() => handleDeleteComment(c.id)}
+          className="ml-2 text-gray-400 hover:text-red-500"
+        >
+          <FiTrash2 size={16} />
+        </button>
+      )}
+    </div>
+  </div>
+))}
+>>>>>>> 55e01232ed0962bf96b79e9a9e4fc756de124b00
       </div>
 
       {/* Yorum Ekleme Alanı */}
