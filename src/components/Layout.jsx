@@ -39,7 +39,7 @@ export default function Layout({ children }) {
               className="w-24 h-24 rounded-full mb-2"
             />
             <h2 className="font-semibold">
-                {auth.currentUser?.email?.split('@')[0] || 'Anonim'}
+                {auth.currentUser?.displayName || auth.currentUser?.email?.split('@')[0] || 'Anonim'}
             </h2>
             
           </div>

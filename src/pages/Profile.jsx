@@ -1,30 +1,107 @@
-import React, { useEffect, useState } from "react";
-import { collection, query, where, getDocs } from "firebase/firestore";
+import React, { useEffect, useState, useRef, useCallback } from "react";
+import {
+  collection,
+  query,
+  where,
+  getDocs,
+  orderBy,
+  limit,
+  startAfter,
+} from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { FiLogOut, FiEdit2 } from "react-icons/fi";
 import { signOut } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
 import Layout from "../components/Layout";
+import EditProfileModal from "../components/EditProfileModal";
 
 export default function Profile() {
-  const [posts, setPosts] = useState([]);
   const user = auth.currentUser;
   const navigate = useNavigate();
+  const [posts, setPosts] = useState([]);
+  const [lastVisible, setLastVisible] = useState(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const observerRef = useRef();
+  const [isEditOpen, setIsEditOpen] = useState(false);
 
-  const fetchUserPosts = async () => {
+  const refreshUser = () => {
+    auth.currentUser.reload().then(() => {
+      console.log("Profil güncellendi");
+    });
+  };
+  const fetchInitialPosts = useCallback(async () => {
     if (!user) return;
-    const q = query(collection(db, "posts"), where("uid", "==", user.uid));
-    const querySnapshot = await getDocs(q);
-    const data = querySnapshot.docs.map((doc) => ({
+
+    const q = query(
+      collection(db, "posts"),
+      where("uid", "==", user.uid),
+      orderBy("createdAt", "desc"),
+      limit(9)
+    );
+
+    const snapshot = await getDocs(q);
+    const data = snapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
     }));
+
     setPosts(data);
-  };
+    setLastVisible(snapshot.docs[snapshot.docs.length - 1]);
+    setHasMore(snapshot.docs.length === 9);
+  }, [user]);
+
+  const fetchMorePosts = useCallback(async () => {
+    if (!lastVisible || loadingMore || !hasMore) return;
+
+    setLoadingMore(true);
+
+    const q = query(
+      collection(db, "posts"),
+      where("uid", "==", user.uid),
+      orderBy("createdAt", "desc"),
+      startAfter(lastVisible),
+      limit(6)
+    );
+
+    const snapshot = await getDocs(q);
+
+    if (!snapshot.empty) {
+      const newPosts = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+
+      setPosts((prev) => [...prev, ...newPosts]);
+      setLastVisible(snapshot.docs[snapshot.docs.length - 1]);
+      if (snapshot.docs.length < 6) setHasMore(false);
+    } else {
+      setHasMore(false);
+    }
+
+    setLoadingMore(false);
+  }, [lastVisible, loadingMore, hasMore, user]);
 
   useEffect(() => {
-    fetchUserPosts();
-  }, [user]);
+    fetchInitialPosts();
+  }, [fetchInitialPosts]);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore) {
+          fetchMorePosts();
+        }
+      },
+      { threshold: 1 }
+    );
+
+    if (observerRef.current) observer.observe(observerRef.current);
+
+    return () => {
+      if (observerRef.current) observer.unobserve(observerRef.current);
+    };
+  }, [fetchMorePosts, hasMore]);
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -33,6 +110,12 @@ export default function Profile() {
 
   return (
     <Layout>
+      <EditProfileModal
+        isOpen={isEditOpen}
+        onClose={() => setIsEditOpen(false)}
+        user={auth.currentUser}
+        refreshUser={refreshUser}
+      />
       <main className="flex-1 p-4 max-w-3xl mx-auto w-full">
         {/* Mobil üst kısım */}
         <div className="flex items-center justify-end mb-4 md:hidden">
@@ -54,12 +137,12 @@ export default function Profile() {
           />
           <div>
             <h2 className="font-semibold text-lg">
-              {user?.displayName || user?.email.split('@')[0]}
+              {user?.displayName || user?.email.split("@")[0]}
             </h2>
             <p className="text-sm text-gray-500">{user?.email}</p>
             <button
-              onClick={() => alert("Düzenle formu aç")}
-              className="mt-1 px-3 py-1 border rounded text-xs flex items-center gap-1"
+              onClick={() => setIsEditOpen(true)}
+              className="mt-2 px-4 py-1 border rounded text-sm flex items-center gap-1"
             >
               <FiEdit2 /> Profili Düzenle
             </button>
@@ -73,10 +156,12 @@ export default function Profile() {
             alt="Avatar"
             className="w-24 h-24 rounded-full mb-2"
           />
-          <h2 className="font-semibold">{user?.displayName || auth.currentUser.email?.split('@')[0]}</h2>
+          <h2 className="font-semibold">
+            {user?.displayName || user?.email.split("@")[0]}
+          </h2>
           <p className="text-sm text-gray-500">{user?.email}</p>
           <button
-            onClick={() => alert("Düzenle formu aç")}
+            onClick={() => setIsEditOpen(true)}
             className="mt-2 px-4 py-1 border rounded text-sm flex items-center gap-1"
           >
             <FiEdit2 /> Profili Düzenle
@@ -105,6 +190,9 @@ export default function Profile() {
             />
           ))}
         </div>
+
+        {loadingMore && <p className="text-center mt-4">Yükleniyor...</p>}
+        <div ref={observerRef} className="h-10" />
       </main>
     </Layout>
   );

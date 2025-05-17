@@ -4,9 +4,8 @@ import { FiHeart, FiMessageCircle } from "react-icons/fi";
 import { db, auth } from "../firebase";
 import {
   doc,
+  getDoc,
   updateDoc,
-  arrayUnion,
-  arrayRemove,
   onSnapshot,
   collection,
   addDoc,
@@ -16,11 +15,10 @@ import {
 } from "firebase/firestore";
 
 export default function PostCard({ post }) {
-  const [likes, setLikes] = useState(post.likes || []);
+  const [likes, setLikes] = useState(post.likes || 0); // sayısal like sayısı
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState("");
   const userId = auth.currentUser?.uid;
-  const hasLiked = likes.includes(userId);
   const [imgLoaded, setImgLoaded] = useState(false);
 
   // Zaman biçimlendirme
@@ -42,7 +40,7 @@ export default function PostCard({ post }) {
     const unsubPost = onSnapshot(doc(db, "posts", post.id), (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data();
-        setLikes(data.likes || []);
+        setLikes(data.likes || 0);
       }
     });
 
@@ -62,12 +60,15 @@ export default function PostCard({ post }) {
     };
   }, [post.id]);
 
-  const toggleLike = async () => {
+  // Beğeni ekleme (kullanıcı istediği kadar artırabilir)
+  const addLike = async () => {
     const postRef = doc(db, "posts", post.id);
-    if (hasLiked) {
-      await updateDoc(postRef, { likes: arrayRemove(userId) });
-    } else {
-      await updateDoc(postRef, { likes: arrayUnion(userId) });
+    const postSnap = await getDoc(postRef);
+    if (postSnap.exists()) {
+      const currentLikes = postSnap.data().likes || 0;
+      await updateDoc(postRef, {
+        likes: currentLikes + 1,
+      });
     }
   };
 
@@ -80,10 +81,10 @@ export default function PostCard({ post }) {
       text: newComment.trim(),
       userId,
       username:
-        auth.currentUser.displayName ||
-        auth.currentUser.email?.split("@")[0] ||
+        auth.currentUser?.displayName ||
+        auth.currentUser?.email?.split("@")[0] ||
         "Anonim",
-      userPhoto: auth.currentUser.photoURL || "",
+      userPhoto: auth.currentUser?.photoURL || "",
       createdAt: serverTimestamp(),
     });
 
@@ -96,11 +97,11 @@ export default function PostCard({ post }) {
       <div className="flex items-center mb-2">
         <img
           src={post.userPhoto || "/default-avatar.jpg"}
-          alt={post.username}
+          alt={post.username || "Anonim"}
           className="w-8 h-8 rounded-full mr-2"
         />
         <div className="flex flex-col">
-          <span className="font-semibold text-sm">{post.username}</span>
+          <span className="font-semibold text-sm">{post.username || "Anonim"}</span>
           <span className="text-xs text-gray-500">{formattedDate}</span>
         </div>
       </div>
@@ -112,7 +113,7 @@ export default function PostCard({ post }) {
         )}
         <img
           src={post.imageUrl}
-          alt={post.caption}
+          alt={post.caption || "Post image"}
           className={`w-full max-h-[calc(100vh-150px)] rounded-md object-contain transition-opacity duration-300 ${
             imgLoaded ? "opacity-100" : "opacity-0"
           }`}
@@ -128,12 +129,9 @@ export default function PostCard({ post }) {
 
       {/* Like & Comment Butonları */}
       <div className="flex items-center gap-4 mb-2">
-        <button onClick={toggleLike} className="flex items-center">
-          <FiHeart
-            size={20}
-            className={hasLiked ? "text-red-500" : "text-gray-600"}
-          />
-          <span className="ml-1 text-sm">{likes.length}</span>
+        <button onClick={addLike} className="flex items-center">
+          <FiHeart size={20} className="text-gray-600" />
+          <span className="ml-1 text-sm">{likes}</span>
         </button>
         <div className="flex items-center">
           <FiMessageCircle size={20} className="text-gray-600" />
@@ -146,12 +144,12 @@ export default function PostCard({ post }) {
         {comments.map((c) => (
           <div key={c.id} className="flex items-start gap-2 text-sm">
             <img
-              src={c.userPhoto || "default-avatar.jpg"}
-              alt={c.username}
+              src={c.userPhoto || "/default-avatar.jpg"}
+              alt={c.username || "Anonim"}
               className="w-6 h-6 rounded-full"
             />
             <div className="bg-gray-100 px-3 py-1 rounded-lg">
-              <span className="font-semibold mr-1">{c.username}</span>
+              <span className="font-semibold mr-1">{c.username || "Anonim"}</span>
               {c.text}
             </div>
           </div>
